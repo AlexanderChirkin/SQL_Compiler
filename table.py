@@ -1,3 +1,5 @@
+import exceptions
+from typing import List, Tuple
 class Table:
     def __init__(self, *args):
         if len(args) == 2:
@@ -31,6 +33,16 @@ class Table:
     @property
     def table(self):
         return self._table
+
+    def get_column(self, name: str, rows: Tuple[int] = ()) -> Tuple:
+        if name not in self.titles:
+            exceptions.UnknownColumn('unknown column ' + name)
+        if not rows:
+            rows = range(len(self.table))
+        columns = []
+        for row in rows:
+            columns.append(self.table[row][columns])
+        return columns
 
     def __str__(self):
         result = ""

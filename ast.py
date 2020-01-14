@@ -90,6 +90,7 @@ class QueryContext:
 class ContextOn:
     def __init__(self):
         self.vars = []
+        self.columns_for_agr = {}
 
     def find_col(self, name: str):
         for t in self.tables:
@@ -293,6 +294,16 @@ class FuncSelectNode(AstNode):
     def __str__(self) -> str:
         return str(self.name)
 
+    def get_value(self, context):
+        list_func = []
+        list_agr = ['sum']
+        if self.name in list_func:
+            pass
+        elif self.name in list_agr:
+            pass
+        else:
+             raise exceptions.UnknownFunction("unknow function " + self.name)
+
 
 class StarNode(AstNode):
     def __init__(self, star: str):
@@ -317,6 +328,35 @@ class SelectNode(AstNode):
 
     def __str__(self) -> str:
         return 'SELECT' if not self.distinct else "SELECT DISTINCT"
+
+    def get_value(self, context: QueryContext, vt: VirtualTable): # -> [[], ]
+        result = []
+        if vt.groups: # сгруппированные таблицы
+            for group in vt.groups:
+                line_res = []
+                context_on = ContextOn()
+                v = Var(group.value, group.column_name, group.table_name, context.get_alias_by_name(group.table_name))
+                context_on.vars.append(v)
+                # заполнить ещё данные для агрегирующих функций
+                # for i in range(len(group.matched_list[0])):
+                #     for math in group.matched_list:
+                #         vt.tables[i].get_column()
+                for c in self.col:
+                    line_res.append(c.get_value(context_on))
+                result.append(line_res)
+        else:        # одна таблица
+            for t_index, math_line in enumerate(vt.matched_list):
+                line_res = []
+                context_on = ContextOn()
+                for index, num in enumerate(math_line):
+                    for col_name, value in vt.tables[index].table[num].items():
+                        v = Var(value, col_name, vt.tables[index].name,
+                                context.get_alias_by_name(vt.tables[index].name))
+                        context_on.vars.append(v)
+                for c in self.col:
+                    line_res.append(c.get_value(context_on))
+                result.append(line_res)
+        return result
 
 
 
@@ -625,6 +665,10 @@ class QueryNode(AstNode):
 
                 for child in self.childs:
                     if isinstance(child, GroupByNode):
+                        table = child.get_value(context, table)
+
+                for child in self.childs:
+                    if isinstance(child, SelectNode):
                         table = child.get_value(context, table)
 
                 return table

@@ -48,7 +48,7 @@ print(lecturers)
 
 prog = myparser.parse(
          '''
-    SELECT DISTINCT to_Int(str(dfd + 2) * ('aaa' || qwe * 3))  , str(2) || (4 *2)
+    SELECT DISTINCT s.Kurs, sum(s.Age)
     FROM students s, professions p
     WHERE s.Kurs = 3 OR Surname = 'Lipatova'
     GROUP BY Kurs

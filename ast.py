@@ -1,57 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Tuple, Optional, Union
+from typing import Callable, Tuple, Optional, Union, List
 from enum import Enum
-from table import Table
+from table import Table, QueryContext, VirtualTable, ContextOn, Var
 import exceptions
-
-class Gruop:
-    def __init__(self, table_name: str, col_name: str, val):
-        self.table_name = table_name
-        self.column_name = col_name
-        self.value = val
-        self.matched_list = []
-
-class Var:
-    def __init__(self, value, col_name: str, t_name: str, alias: str = ''):
-        self.t_name = t_name
-        self.value = value
-        self.col_name = col_name
-        self.alias = alias
-
-class VirtualTable:
-    def __init__(self):
-        self.tables = []
-        self.matched_list = []
-        self.groups = []
-
-    def createVTFromT(self, table: Table):
-        self.tables = [table]
-        for r in range(0, len(table.table)):
-            self.matched_list.append([r])
-
-    def get_rows(self):
-        for match in self.matched_list:
-            row = []
-            for index, value in enumerate(match):
-                for key, value2 in dict.items(self.tables[index].table[value]):
-                    row.append(Var(key, value2, self.tables[index]))
-            yield row
-
-    def __str__(self) -> str:
-        result = ""
-        for match in self.matched_list:
-            for index, num in enumerate(match):
-                for col_name, value in self.tables[index].table[num].items():
-                    result += '{:^30}'.format(value)
-            result += '\n'
-        return result
-
-    def grops_contain(self, value):
-        for g in self.groups:
-            if g.value == value:
-                return g
-        return None
-
 
 
 class Type(Enum):
@@ -61,56 +12,6 @@ class Type(Enum):
     BOOL = 4
     STAR = 5
     NULL = 6
-
-class QueryContext:
-    def __init__(self):
-        self.db = {}
-        self.aliases = {}
-
-    def get_alias_by_name(self, name: str):
-        for al, t in self.aliases.items():
-            if t is self.aliases[name] and al != name:
-                return al
-        return ''
-
-    def get_name_by_alias(self, alias:str) -> str:
-        if alias in self.db:  # это уже имя таблицы   ?(или алиас, который назван также как и одна из таблиц в бд не использующаяся в запросе)
-            return alias
-        for key, a in self.aliases.items():  # это точно алиас
-            if a is self.aliases[alias] and key != alias:
-                if key in self.db:
-                    return key
-
-    def get_name_by_col_name(self, col_name) -> str:
-        for key, a in self.aliases.items():
-            if col_name in a.titles:
-                return self.get_name_by_alias(key)
-
-
-class ContextOn:
-    def __init__(self):
-        self.vars = []
-        self.columns_for_agr = {}
-
-    def find_col(self, name: str):
-        for t in self.tables:
-            if name in t:
-                return t[name]
-                break
-        else:
-            raise exceptions.UnknownColumn("unknown column " + name)
-
-    def find_by_col_name(self, col_name: str):
-        for v in self.vars:
-            if v.col_name == col_name:
-                return v.value
-        raise exceptions.UnknownColumn("unknown column " + col_name)
-
-    def find_by_table_and_col(self, t_name: str, col_name: str):
-        for v in self.vars:
-            if (v.alias == t_name or v.t_name == t_name) and v.col_name == col_name:
-                return v.value
-        raise exceptions.UnknownColumn("unknown column " + col_name)
 
 
 class AstNode(ABC):
@@ -144,15 +45,7 @@ class AstNode(ABC):
 
     def full_up_context_table(self, context: QueryContext):
         if isinstance(self, TableNode):
-            if self.name in context.db:
-                context.aliases[self.name] = context.db[self.name]
-                if self.alias:
-                    if str(self.alias) not in context.aliases:
-                        context.aliases[str(self.alias)] = context.db[self.name]
-                    else:
-                        raise exceptions.RepeatedDeclareAlias("Alias " + str(self.alias) + " were declare before")
-            else:
-                raise exceptions.UnknownTable('Unknown table ' + self.name)
+            context.add_table_to_context(self.name, self.alias)
         if self.childs:
             for child in self.childs:
                 child.full_up_context_table(context)
@@ -204,7 +97,7 @@ class ColumnNode(AstNode):
         self.full_name = str(name)
         if len(self.full_name.split('.')) == 1:
             self.col_name = self.full_name
-            self.table_name = None
+            self.table_name = ''
         else:
             self.table_name = self.full_name.split('.')[0]
             self.col_name = self.full_name.split('.')[1]
@@ -331,12 +224,12 @@ class SelectNode(AstNode):
 
     def get_value(self, context: QueryContext, vt: VirtualTable): # -> [[], ]
         result = []
-        if vt.groups: # сгруппированные таблицы
+        if vt._groups: # сгруппированные таблицы
             for group in vt.groups:
                 line_res = []
                 context_on = ContextOn()
                 v = Var(group.value, group.column_name, group.table_name, context.get_alias_by_name(group.table_name))
-                context_on.vars.append(v)
+                context_on._vars.append(v)
                 # заполнить ещё данные для агрегирующих функций
                 # for i in range(len(group.matched_list[0])):
                 #     for math in group.matched_list:
@@ -345,18 +238,7 @@ class SelectNode(AstNode):
                     line_res.append(c.get_value(context_on))
                 result.append(line_res)
         else:        # одна таблица
-            for t_index, math_line in enumerate(vt.matched_list):
-                line_res = []
-                context_on = ContextOn()
-                for index, num in enumerate(math_line):
-                    for col_name, value in vt.tables[index].table[num].items():
-                        v = Var(value, col_name, vt.tables[index].name,
-                                context.get_alias_by_name(vt.tables[index].name))
-                        context_on.vars.append(v)
-                for c in self.col:
-                    line_res.append(c.get_value(context_on))
-                result.append(line_res)
-        return result
+            return vt.make_select(([func.get_value for func in self.col]))
 
 
 
@@ -430,7 +312,7 @@ class BoolFromNode(AstNode):
 
 
 class TableNode(AstNode):
-    def __init__(self, table_name: str, alias: str = None):
+    def __init__(self, table_name: str, alias: str = ''):
         super().__init__()
         self.name = str(table_name)
         self.alias = alias
@@ -438,9 +320,9 @@ class TableNode(AstNode):
     def __str__(self) -> str:
         return self.name + " " + str(self.alias) if self.alias else self.name
 
-    def get_value(self, context) -> VirtualTable:
-        t = VirtualTable()
-        t.createVTFromT(context.aliases[str(self.alias) if self.alias else self.name])
+    def get_value(self, context: QueryContext) -> VirtualTable:
+        t = VirtualTable()                                                                          # убрать это
+        t.create_VT_from_T(context.get_table_by_name(self.name))
         return t
 
 
@@ -489,28 +371,7 @@ class JoinExprNode(AstNode):
         new_vt = VirtualTable()
         vt1 = self.table1.get_value(context)
         vt2 = self.table2.get_value(context)
-        for t in vt1.tables:
-            new_vt.tables.append(t)
-        for t in vt2.tables:
-            new_vt.tables.append(t)
-        for math_line1 in vt1.matched_list:
-            for math_line2 in vt2.matched_list:
-                context_on = ContextOn()
-                for index, num in enumerate(math_line1):
-                    for col_name, value in vt1.tables[index].table[num].items():
-                        v = Var(value, col_name, vt1.tables[index].name, context.get_alias_by_name(vt1.tables[index].name))
-                        context_on.vars.append(v)
-                for index, num in enumerate(math_line2):
-                    for col_name, value in vt2.tables[index].table[num].items():
-                        v = Var(value,col_name, vt2.tables[index].name, context.get_alias_by_name(vt2.tables[index].name))
-                        context_on.vars.append(v)
-                if self.on.get_value(context_on):
-                    new_match_line = []
-                    for m in math_line1:
-                        new_match_line.append(m)
-                    for m in math_line2:
-                        new_match_line.append(m)
-                    new_vt.matched_list.append(new_match_line)
+        new_vt.create_VT_from_inner_join(vt1, vt2, func_on=self.on.get_value)
         return new_vt
 
     def get_value(self, context: QueryContext) -> VirtualTable:
@@ -571,20 +432,9 @@ class WhereNode(AstNode):
     def __str__(self) -> str:
         return 'WHERE'
 
-    def get_value(self, context: QueryContext, table: VirtualTable ) -> VirtualTable:
-        deleted_list = []
-        for t_index, math_line in enumerate(table.matched_list):
-            context_on = ContextOn()
-            for index, num in enumerate(math_line):
-                for col_name, value in table.tables[index].table[num].items():
-                    v = Var(value, col_name, table.tables[index].name, context.get_alias_by_name(table.tables[index].name))
-                    context_on.vars.append(v)
-            if not self.arg[0].get_value(context_on):
-                deleted_list.append(t_index)
-        for i in range(len(deleted_list)-1, -1, -1):
-            table.matched_list.pop(deleted_list[i])
+    def get_value(self, context: QueryContext, table: VirtualTable) -> VirtualTable:
+        table.delete_some_rows(self.arg[0].get_value)
         return table
-
 
 
 class GroupByNode(AstNode):
@@ -601,25 +451,10 @@ class GroupByNode(AstNode):
     def get_value(self, context: QueryContext, vt: VirtualTable) -> VirtualTable:
         col_name = self.column.col_name
         if self.column.table_name:
-            table_name = context.get_name_by_alias(self.column.table_name)
+            table_name = self.column.table_name
         else:
             table_name = context.get_name_by_col_name(col_name)
-        for index, t in enumerate(vt.tables):
-            if t is context.aliases[table_name]:
-                index_table_in_VT = index
-                break
-        else:
-            pass #exception
-
-        for math_line in vt.matched_list:
-            val = vt.tables[index_table_in_VT].table[math_line[index_table_in_VT]][col_name]
-            group = vt.grops_contain(val)
-            if group:
-                group.matched_list.append(math_line)
-            else:
-                new_gr = Gruop(table_name, col_name, val)
-                new_gr.matched_list.append(math_line)
-                vt.groups.append(new_gr)
+        vt.construct_group(table_name, col_name)
         return vt
 
 
@@ -639,16 +474,8 @@ class QueryNode(AstNode):
 
     def cartesian_product(self, table1: VirtualTable, table2: VirtualTable) -> VirtualTable:
         table = VirtualTable()
-        table.tables.extend(table1.tables)
-        table.tables.extend(table2.tables)
-        for ml1 in table1.matched_list:
-            for ml2 in table2.matched_list:
-                ml = []
-                ml.extend(ml1)
-                ml.extend(ml2)
-                table.matched_list.append(ml)
+        table.create_VT_from_cartesian_product(table1, table2)
         return table
-
 
     def execute(self, context: QueryContext) -> VirtualTable:
         for child in self.childs:
@@ -658,7 +485,7 @@ class QueryNode(AstNode):
                 for i in range(1, len(child.childs)): # таблица может получиться с несколькими одинаковыми именами столбцов
                     table = self.cartesian_product(table, child.childs[i].get_value(context))
 
-                #return table
+
                 for child in self.childs:
                     if isinstance(child, WhereNode):
                         table = child.get_value(context, table)
@@ -666,6 +493,7 @@ class QueryNode(AstNode):
                 for child in self.childs:
                     if isinstance(child, GroupByNode):
                         table = child.get_value(context, table)
+
 
                 for child in self.childs:
                     if isinstance(child, SelectNode):

@@ -48,10 +48,10 @@ print(lecturers)
 
 prog = myparser.parse(
          '''
-    SELECT DISTINCT s.Kurs, sum(s.Age)
-    FROM students s, professions p
-    WHERE s.Kurs = 3 OR Surname = 'Lipatova'
-    GROUP BY Kurs
+    SELECT DISTINCT s.Kurs, s
+    FROM students s JOIN professions p ON s.Age = p.Age, professions prof
+    WHERE s.Kurs = 3 OR Name = 'Lex'
+    GROUP BY s.Kurs
     ;
         ''')
 #FROM students s1 JOIN professions s2 ON s1.Age  = s2.Age JOIN lecturers l ON l.Kurs = 1 OR l.Kurs = 2 AND s1.Name = 'Ivan'

@@ -224,21 +224,7 @@ class SelectNode(AstNode):
 
     def get_value(self, context: QueryContext, vt: VirtualTable): # -> [[], ]
         result = []
-        if vt._groups: # сгруппированные таблицы
-            for group in vt.groups:
-                line_res = []
-                context_on = ContextOn()
-                v = Var(group.value, group.column_name, group.table_name, context.get_alias_by_name(group.table_name))
-                context_on._vars.append(v)
-                # заполнить ещё данные для агрегирующих функций
-                # for i in range(len(group.matched_list[0])):
-                #     for math in group.matched_list:
-                #         vt.tables[i].get_column()
-                for c in self.col:
-                    line_res.append(c.get_value(context_on))
-                result.append(line_res)
-        else:        # одна таблица
-            return vt.make_select(([func.get_value for func in self.col]))
+        return vt.make_select(([func.get_value for func in self.col]))
 
 
 

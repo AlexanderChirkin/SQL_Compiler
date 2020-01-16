@@ -2,16 +2,10 @@ from abc import ABC, abstractmethod
 from typing import Callable, Tuple, Optional, Union, List
 from enum import Enum
 from table import Table, QueryContext, VirtualTable, ContextOn, Var
+from functions import FunctionsPack
+from enums import Type
 import exceptions
 
-
-class Type(Enum):
-    STR = 1
-    NUM = 2
-    TABLE = 3
-    BOOL = 4
-    STAR = 5
-    NULL = 6
 
 
 class AstNode(ABC):
@@ -179,6 +173,7 @@ class FuncSelectNode(AstNode):
     def __init__(self, func_name: str, param: AstNode):
         self.param = param
         self.name = func_name
+        self.fp = FunctionsPack()
 
     @property
     def childs(self) -> Tuple['AstNode', ...]:
@@ -188,14 +183,16 @@ class FuncSelectNode(AstNode):
         return str(self.name)
 
     def get_value(self, context):
-        list_func = []
-        list_agr = ['sum']
-        if self.name in list_func:
-            pass
-        elif self.name in list_agr:
-            pass
+        if self.name in self.fp.functions:
+            return self.fp.functions[self.name].execute([self.param.get_value(context)])
         else:
              raise exceptions.UnknownFunction("unknow function " + self.name)
+
+    def get_type(self, context):
+        if self.name in self.fp.functions:
+            return self.fp.functions[self.name].type
+        raise exceptions.UnknownFunction("unknow function " + self.name)
+
 
 
 class StarNode(AstNode):

@@ -48,7 +48,7 @@ print(lecturers)
 
 prog = myparser.parse(
          '''
-    SELECT DISTINCT avg(s.Kurs), num_to_str(s.Age) || '_years', s.Name || '_' || s.Surname
+    SELECT DISTINCT power(s.Kurs, 2), num_to_str(s.Age) || '_years', substr(s.Name,0,2) || '_' || s.Surname
     FROM students s JOIN professions p ON s.Age = p.Age, professions prof
     WHERE s.Kurs = 3 OR Name = 'Lex' OR num_to_str(s.Kurs) = '2'
 

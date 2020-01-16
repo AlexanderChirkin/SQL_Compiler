@@ -74,6 +74,24 @@ class FunctionsPack:
         f = Function('sqrt', Kind.COMMON, [Type.NUM], Type.NUM, math.sqrt)
         self._functions[f.name] = f
 
+        def power(x, y):
+            return x ** y
+        f = Function('power', Kind.COMMON, [Type.NUM, Type.NUM], Type.NUM, power)
+        self._functions[f.name] = f
+
+        def in_str(x: str, y: str):
+            return x.find(y)
+        f = Function('instr', Kind.COMMON, [Type.STR, Type.STR], Type.NUM, in_str)
+        self._functions[f.name] = f
+
+        def substr(s: str, b: int, l: int):
+            return s[int(b):int(b+l)]
+        f = Function('substr', Kind.COMMON, [Type.STR, Type.NUM, Type.NUM], Type.STR, substr)
+        self._functions[f.name] = f
+
+
+
+
         f = Function('count', Kind.AGR, [Type.NUM], Type.NUM, len)
         self._functions[f.name] = f
         f = Function('count_str', Kind.AGR, [Type.STR], Type.NUM, len)

@@ -24,7 +24,7 @@ def make_parser():
     func_name = pp.Word(pp.alphas + pp.nums + "_")
 
     conc = pp.Forward()
-    func_select = func_name + LPAR + (conc | star) + RPAR
+    func_select = func_name + LPAR + (pp.delimitedList(conc) | star) + RPAR
     group_idf = func_select | num | str_const | column | LPAR + conc + RPAR  #| LPAR + add + RPAR
     mult = group_idf + pp.ZeroOrMore(MULT + group_idf)
     add = mult + pp.ZeroOrMore(ADD + mult)

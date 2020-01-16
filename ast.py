@@ -170,14 +170,14 @@ class BinOpNode(AstNode):
 
 
 class FuncSelectNode(AstNode):
-    def __init__(self, func_name: str, param: AstNode):
-        self.param = param
+    def __init__(self, func_name: str, *param: Tuple[AstNode]):
+        self.params = param
         self.name = func_name
         self.fp = FunctionsPack()
 
     @property
     def childs(self) -> Tuple['AstNode', ...]:
-        return self.param,
+        return self.params
 
     def __str__(self) -> str:
         return str(self.name)
@@ -185,7 +185,7 @@ class FuncSelectNode(AstNode):
     def get_value(self, context: ContextOn):
         if self.name in self.fp.functions:
             context.flag_pointer = self.fp.functions[self.name].kind == Kind.COMMON
-            return self.fp.functions[self.name].execute([self.param.get_value(context)])
+            return self.fp.functions[self.name].execute([p.get_value(context) for p in self.params])
         else:
             raise exceptions.UnknownFunction("unknow function " + self.name)
 

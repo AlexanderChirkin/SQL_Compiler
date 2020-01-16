@@ -131,6 +131,13 @@ class Var:
         self.alias = alias
         self.t_name = t_name
 
+class VarForAgr:
+    def __init__(self, col_name: str, t_name: str, alias: str = ''):
+        self.value = []
+        self.col_name = col_name
+        self.alias = alias
+        self.t_name = t_name
+
 
 class QueryContext:
     def __init__(self, tables: List[Table]):
@@ -216,6 +223,19 @@ class VirtualTable:
                 vars.append(Var(value, col_name, self._tables[index].name, self._tables[index].alias))
         return vars
 
+    def get_vars_for_agr(self):
+        full_context = []
+        for t_index, match_line in enumerate(self._matched_list):
+            full_context.append(self.get_vars(match_line))
+        vfa_list = []
+        for col in range(len(full_context[0])):
+            v = full_context[0][col]
+            vfa = VarForAgr(v.col_name, v.t_name, v.alias)
+            for row in range(len(full_context)):
+                vfa.value.append(full_context[row][col].value)
+            vfa_list.append(vfa)
+        return vfa_list
+
     def get_cols(self, match_line: List[int]) -> List[str]:
         cols = []
         for index, num in enumerate(match_line):
@@ -271,6 +291,7 @@ class VirtualTable:
             line_res = []
             context_on = ContextOn()
             context_on.append_vars(self.get_vars(match_line))
+            context_on.append_clumn_for_agr(self.get_vars_for_agr())
             for f in functions:
                 line_res.append(f(context_on))
             result.append(line_res)
@@ -304,7 +325,8 @@ class VirtualTable:
 class ContextOn:
     def __init__(self):
         self._vars = []
-        self.columns_for_agr = {}
+        self.columns_for_agr = []
+        self.flag_pointer = True
 
     def find_col(self, name: str):
         for t in self.tables:
@@ -315,19 +337,23 @@ class ContextOn:
             raise exceptions.UnknownColumn("unknown column " + name)
 
     def find_by_col_name(self, col_name: str):
-        for v in self._vars:
+        for v in self._vars if self.flag_pointer else self.columns_for_agr:
             if v.col_name == col_name:
                 return v.value
         raise exceptions.UnknownColumn("unknown column " + col_name)
 
     def find_by_table_and_col(self, t_name: str, col_name: str):
-        for v in self._vars:
+        for v in self._vars if self.flag_pointer else self.columns_for_agr:
             if (v.alias == t_name or v.t_name == t_name) and v.col_name == col_name:
                 return v.value
         raise exceptions.UnknownColumn("unknown column " + col_name)
 
     def append_vars(self, vars: List[Var]):
         self._vars.extend(vars)
+
+    def append_clumn_for_agr(self, cols: List[VarForAgr]):
+        self.columns_for_agr.extend(cols)
+
 
 
 

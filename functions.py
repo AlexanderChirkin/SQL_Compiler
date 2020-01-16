@@ -74,6 +74,22 @@ class FunctionsPack:
         f = Function('sqrt', Kind.COMMON, [Type.NUM], Type.NUM, math.sqrt)
         self._functions[f.name] = f
 
+        f = Function('count', Kind.AGR, [Type.NUM], Type.NUM, len)
+        self._functions[f.name] = f
+        f = Function('count_str', Kind.AGR, [Type.STR], Type.NUM, len)
+        self._functions[f.name] = f
+        f = Function('sum', Kind.AGR, [Type.NUM], Type.NUM, sum)
+        self._functions[f.name] = f
+        def avg(in_list):
+            return sum(in_list)/len(in_list)
+        f = Function('avg', Kind.AGR, [Type.NUM], Type.NUM, avg)
+        self._functions[f.name] = f
+        f = Function('max', Kind.AGR, [Type.NUM], Type.NUM, max)
+        self._functions[f.name] = f
+        f = Function('min', Kind.AGR, [Type.NUM], Type.NUM, min)
+        self._functions[f.name] = f
+
+
     @property
     def functions(self) -> Dict[str, Function]:
         return self._functions

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Callable, Tuple, Optional, Union, List
 from enum import Enum
 from table import Table, QueryContext, VirtualTable, ContextOn, Var
-from functions import FunctionsPack
+from functions import FunctionsPack, Kind
 from enums import Type
 import exceptions
 
@@ -182,17 +182,17 @@ class FuncSelectNode(AstNode):
     def __str__(self) -> str:
         return str(self.name)
 
-    def get_value(self, context):
+    def get_value(self, context: ContextOn):
         if self.name in self.fp.functions:
+            context.flag_pointer = self.fp.functions[self.name].kind == Kind.COMMON
             return self.fp.functions[self.name].execute([self.param.get_value(context)])
         else:
-             raise exceptions.UnknownFunction("unknow function " + self.name)
+            raise exceptions.UnknownFunction("unknow function " + self.name)
 
     def get_type(self, context):
         if self.name in self.fp.functions:
             return self.fp.functions[self.name].type
         raise exceptions.UnknownFunction("unknow function " + self.name)
-
 
 
 class StarNode(AstNode):
@@ -205,7 +205,7 @@ class StarNode(AstNode):
 
 
 class SelectNode(AstNode):
-    def __init__(self, *args): # 'SELECT' ['DISTINCT'] *|Tuple(...)
+    def __init__(self, *args):  # 'SELECT' ['DISTINCT'] *|Tuple(...)
         if type(args[-1]) == StarNode:
             self.col = args[-1],
         else:

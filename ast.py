@@ -474,13 +474,14 @@ class QueryNode(AstNode):
                     if isinstance(child, WhereNode):
                         table = child.get_value(context, table)
 
+
                 for child in self.childs:
                     if isinstance(child, GroupByNode):
                         table = child.get_value(context, table)
 
-
-                for child in self.childs:
-                    if isinstance(child, SelectNode):
-                        table = child.get_value(context, table)
+                
+                # for child in self.childs:
+                #     if isinstance(child, SelectNode):
+                #         table = child.get_value(context, table)
 
                 return table

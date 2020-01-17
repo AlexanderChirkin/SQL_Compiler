@@ -223,9 +223,9 @@ class VirtualTable:
                 vars.append(Var(value, col_name, self._tables[index].name, self._tables[index].alias))
         return vars
 
-    def get_vars_for_agr(self):
+    def get_vars_for_agr(self, matched_list):
         full_context = []
-        for t_index, match_line in enumerate(self._matched_list):
+        for t_index, match_line in enumerate(matched_list):
             full_context.append(self.get_vars(match_line))
         vfa_list = []
         for col in range(len(full_context[0])):
@@ -272,29 +272,26 @@ class VirtualTable:
 
     def make_select(self, functions: Tuple):
         result = []
-        # if vt._groups:  # сгруппированные таблицы
-        #     for group in vt.groups:
-        #         line_res = []
-        #         context_on = ContextOn()
-        #         v = Var(group.value, group.column_name, group.table_name, context.get_alias_by_name(group.table_name))
-        #         context_on._vars.append(v)
-        #         # заполнить ещё данные для агрегирующих функций
-        #         # for i in range(len(group.matched_list[0])):
-        #         #     for math in group.matched_list:
-        #         #         vt.tables[i].get_column()
-        #         for c in self.col:
-        #             line_res.append(c.get_value(context_on))
-        #         result.append(line_res)
-        # else:  # одна таблица
-        #result.append(self.get_cols(self._matched_list[0]))
-        for t_index, match_line in enumerate(self._matched_list):
-            line_res = []
-            context_on = ContextOn()
-            context_on.append_vars(self.get_vars(match_line))
-            context_on.append_clumn_for_agr(self.get_vars_for_agr())
-            for f in functions:
-                line_res.append(f(context_on))
-            result.append(line_res)
+        if self._groups:
+            for group in self._groups:
+                line_res = []
+                context_on = ContextOn()
+                context_on.append_vars(self.get_vars(group._matched_list[0]))
+                context_on.append_clumn_for_agr(self.get_vars_for_agr(group._matched_list))
+                context_on._group_var = group._var
+                context_on._flag_group = True
+                for f in functions:
+                    line_res.append(f(context_on))
+                result.append(line_res)
+        else:
+            for t_index, match_line in enumerate(self._matched_list):
+                line_res = []
+                context_on = ContextOn()
+                context_on.append_vars(self.get_vars(match_line))
+                context_on.append_clumn_for_agr(self.get_vars_for_agr(self._matched_list))
+                for f in functions:
+                    line_res.append(f(context_on))
+                result.append(line_res)
         return result
 
 
@@ -327,6 +324,8 @@ class ContextOn:
         self._vars = []
         self.columns_for_agr = []
         self.flag_pointer = True
+        self._group_var = None
+        self._flag_group = False
 
     def find_col(self, name: str):
         for t in self.tables:
@@ -337,14 +336,26 @@ class ContextOn:
             raise exceptions.UnknownColumn("unknown column " + name)
 
     def find_by_col_name(self, col_name: str):
+        if self._group_var:
+            if self._group_var.col_name == col_name:
+                return self._group_var.value
+        if self._flag_group and not self.flag_pointer:
+            raise exceptions.SelectError("try to use column without agr functions in group")
         for v in self._vars if self.flag_pointer else self.columns_for_agr:
             if v.col_name == col_name:
+                self.flag_pointer = True
                 return v.value
         raise exceptions.UnknownColumn("unknown column " + col_name)
 
     def find_by_table_and_col(self, t_name: str, col_name: str):
+        if self._group_var:
+            if self._group_var.col_name == col_name and (self._group_var.alias == t_name or self._group_var.t_name == t_name):
+                return self._group_var.value
+        if self._flag_group and self.flag_pointer:
+            raise exceptions.SelectError("try to use column without agr functions in group")
         for v in self._vars if self.flag_pointer else self.columns_for_agr:
             if (v.alias == t_name or v.t_name == t_name) and v.col_name == col_name:
+                self.flag_pointer = True
                 return v.value
         raise exceptions.UnknownColumn("unknown column " + col_name)
 

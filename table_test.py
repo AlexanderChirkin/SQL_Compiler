@@ -48,12 +48,14 @@ print(lecturers)
 
 prog = myparser.parse(
          '''
-    SELECT DISTINCT power(s.Kurs, 2), num_to_str(s.Age) || '_years', substr(s.Name,0,2) || '_' || s.Surname
-    FROM students s JOIN professions p ON s.Age = p.Age, professions prof
-    WHERE s.Kurs = 3 OR Name = 'Lex' OR num_to_str(s.Kurs) = '2'
+    SELECT DISTINCT  count(s.Age), students.Kurs
+    FROM students s JOIN professions p ON 1=1
+    GROUP BY Kurs
 
     ;
         ''')
 #FROM students s1 JOIN professions s2 ON s1.Age  = s2.Age JOIN lecturers l ON l.Kurs = 1 OR l.Kurs = 2 AND s1.Name = 'Ivan'       GROUP BY s.Kurs
 print(*prog.tree, sep=os.linesep)
-print(compilate([students, professions, lecturers], prog))
+res = compilate([students, professions, lecturers], prog)
+for line in res:
+    print(line)

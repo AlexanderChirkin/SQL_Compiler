@@ -219,8 +219,9 @@ class SelectNode(AstNode):
     def __str__(self) -> str:
         return 'SELECT' if not self.distinct else "SELECT DISTINCT"
 
-    def get_value(self, context: QueryContext, vt: VirtualTable): # -> [[], ]
-        result = []
+    def get_value(self, context: QueryContext, vt: VirtualTable):  # -> [[], ]
+        if len(self.col) == 1 and isinstance(self.col[0], StarNode):
+            return vt.make_select_all()
         return vt.make_select(([func.get_value for func in self.col]))
 
 

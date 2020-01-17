@@ -318,6 +318,18 @@ class VirtualTable:
                 return g
         return None
 
+    def make_select_all(self):
+        result = []
+        if self._groups:
+            raise exceptions.SelectError('use * with group')
+        for r_index, match_line in enumerate(self._matched_list):
+            line_res = []
+            for t_index, ind_row_in_t in enumerate(match_line):
+                line_res.extend(self._tables[t_index].table.table[ind_row_in_t].values())
+            result.append(line_res)
+        return result
+
+
 
 class ContextOn:
     def __init__(self):

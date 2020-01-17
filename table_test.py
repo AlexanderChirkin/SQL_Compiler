@@ -48,9 +48,8 @@ print(lecturers)
 
 prog = myparser.parse(
          '''
-    SELECT DISTINCT  count(s.Age), students.Kurs
+    SELECT DISTINCT *
     FROM students s JOIN professions p ON 1=1
-    GROUP BY Kurs
 
     ;
         ''')

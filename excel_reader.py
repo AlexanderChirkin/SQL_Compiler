@@ -14,5 +14,6 @@ def get_tables_from_excel(path: str):
     return tables
 
 
-for t in get_tables_from_excel('D:/tables/xl.xls'):
-    print(t)
+if __name__ == '__main__':
+    for t in get_tables_from_excel('D:/tables/xl.xls'):
+        print(t)

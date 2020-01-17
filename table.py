@@ -50,11 +50,11 @@ class Table:
         result = ""
         result += '   ' + self.name + '\n'
         for title in self.titles:
-            result += '{:^30}'.format(title)
+            result += '{:^20}'.format(title)
         result += '\n'
         for line in self.table:
             for title in self.titles:
-                result += '{:^30}'.format(line[title])
+                result += '{:^20}'.format(line[title])
             result += '\n'
         return result
 
